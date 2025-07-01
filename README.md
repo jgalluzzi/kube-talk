@@ -18,3 +18,22 @@ https://minikube.sigs.k8s.io/docs/start/?arch=%2Fmacos%2Farm64%2Fstable%2Fbinary
 
 
 
+## AWS Configuration
+
+Setup AWS Access Key
+I'd suggest creating a separate user for this that isn't your root user. Enable that user with the correct role and create an access key for it.
+
+Authenticate AWS CLI
+
+`aws configure`
+
+Setup VPC/Subnet/Security Groups
+
+`curl -o vpc.yaml https://amazon-eks.s3.us-west-2.amazonaws.com/cloudformation/2020-06-10/amazon-eks-vpc-sample.yaml`
+
+```
+aws cloudformation create-stack \
+  --stack-name eks-vpc \
+  --template-body file://vpc.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+```

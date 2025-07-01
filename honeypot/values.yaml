@@ -1,0 +1,24 @@
+replicaCount: 1
+
+image:
+  repository: cowrie/cowrie
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 2222
+  targetPort: 2222
+
+serviceAccount:
+  create: true
+  name: honeypot-sa
+  annotations: {}  # Optional: Add eks.amazonaws.com/role-arn for IRSA
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
