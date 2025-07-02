@@ -7,8 +7,10 @@ image:
 
 service:
   type: LoadBalancer
-  port: 2222
+  port: 22
   targetPort: 2222
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
 
 serviceAccount:
   create: true

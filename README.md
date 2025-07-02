@@ -20,16 +20,87 @@ https://minikube.sigs.k8s.io/docs/start/?arch=%2Fmacos%2Farm64%2Fstable%2Fbinary
 
 ## AWS Configuration
 
-Setup AWS Access Key
+### Install CLI
+Windows
+winget install -e --id Amazon.AWSCLI
+
+MacOS
+brew install awscli
+
+### Install helm
+
+brew install helm
+
+### Setup AWS Access Key
 I'd suggest creating a separate user for this that isn't your root user. Enable that user with the correct role and create an access key for it.
 
-Authenticate AWS CLI
+### Authenticate AWS CLI
 
 `aws configure`
 
-Setup VPC/Subnet/Security Groups
+### Create IAM Resources. Reference the file eks-trust-policy.json from git
 
-`curl -o vpc.yaml https://amazon-eks.s3.us-west-2.amazonaws.com/cloudformation/2020-06-10/amazon-eks-vpc-sample.yaml`
+
+#### Cluster
+```
+aws iam create-role \
+  --role-name EKSClusterRole \
+  --assume-role-policy-document file://eks-trust-policy.json
+```
+
+```
+aws iam attach-role-policy \
+  --role-name EKSClusterRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+```
+#### Node group
+
+Create IAM Permissions
+```
+aws iam create-role \
+  --role-name eksNodeRole \
+  --assume-role-policy-document file://trust-ec2.json
+
+aws iam attach-role-policy \
+  --role-name eksNodeRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+
+aws iam attach-role-policy \
+  --role-name eksNodeRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+aws iam attach-role-policy \
+  --role-name eksNodeRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+
+aws iam attach-role-policy \
+  --role-name eksNodeRole \
+  --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/AWSLoadBalancerControllerIAMPolicy
+
+```
+
+Create Node group in cluster
+```
+aws eks create-nodegroup \
+  --cluster-name my-cluster \
+  --nodegroup-name my-node-group \
+  --node-role arn:aws:iam::<ACCOUNT_ID>:role/eksNodeRole \
+  --subnets subnet-abc123 subnet-def456 \
+  --scaling-config minSize=1,maxSize=2,desiredSize=1 \
+  --disk-size 20 \
+  --instance-types t3.medium \
+  --region us-west-1
+```
+
+### Setup VPC/Subnet/Security Groups
+
+```
+curl -o vpc.yaml https://amazon-eks.s3.us-west-2.amazonaws.com/cloudformation/2020-06-10/amazon-eks-vpc-sample.yaml
+```
 
 ```
 aws cloudformation create-stack \
@@ -37,3 +108,39 @@ aws cloudformation create-stack \
   --template-body file://vpc.yaml \
   --capabilities CAPABILITY_NAMED_IAM
 ```
+
+Save Subnet IDs, Security Groups, and VPC for next step
+
+### Create Cluster
+Create your EKS cluster. Use your AWS account id for <ACCOUNT_ID>. Ensure your subnets, security groups, and region is correct. 
+
+Get stack ouputs to use in Cluster creation
+```
+aws cloudformation describe-stacks \
+  --stack-name eks-vpc \
+  --query "Stacks[0].Outputs" \
+  --region us-west-1
+```
+
+
+```
+aws eks create-cluster \
+  --name my-cluster \
+  --role-arn arn:aws:iam::<ACCOUNT_ID>:role/EKSClusterRole \
+  --resources-vpc-config subnetIds=<SUBNET1_ID>,<SUBNET2_ID>,securityGroupIds=<SG_ID> \
+  --region us-west-1
+```
+
+### Enable kubectl access
+
+aws eks update-kubeconfig --name my-cluster --region us-west-1
+
+
+### Deploy Honeypot (helm)
+Install the helm chart to deploy the honeypot service/deployment
+
+```
+helm install honeypot ./honeypot -f honeypot/values.yaml
+```
+
+
