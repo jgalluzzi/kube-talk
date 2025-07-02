@@ -39,9 +39,6 @@ I'd suggest creating a separate user for this that isn't your root user. Enable 
 `aws configure`
 
 ### Create IAM Resources. Reference the file eks-trust-policy.json from git
-
-
-#### Cluster
 ```
 aws iam create-role \
   --role-name EKSClusterRole \
@@ -53,9 +50,6 @@ aws iam attach-role-policy \
   --role-name EKSClusterRole \
   --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
 ```
-#### Node group
-
-Create IAM Permissions
 ```
 aws iam create-role \
   --role-name eksNodeRole \
@@ -83,19 +77,6 @@ aws iam attach-role-policy \
 
 ```
 
-Create Node group in cluster
-```
-aws eks create-nodegroup \
-  --cluster-name my-cluster \
-  --nodegroup-name my-node-group \
-  --node-role arn:aws:iam::<ACCOUNT_ID>:role/eksNodeRole \
-  --subnets subnet-abc123 subnet-def456 \
-  --scaling-config minSize=1,maxSize=2,desiredSize=1 \
-  --disk-size 20 \
-  --instance-types t3.medium \
-  --region us-west-1
-```
-
 ### Setup VPC/Subnet/Security Groups
 
 ```
@@ -109,11 +90,6 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
-Save Subnet IDs, Security Groups, and VPC for next step
-
-### Create Cluster
-Create your EKS cluster. Use your AWS account id for <ACCOUNT_ID>. Ensure your subnets, security groups, and region is correct. 
-
 Get stack ouputs to use in Cluster creation
 ```
 aws cloudformation describe-stacks \
@@ -121,13 +97,31 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs" \
   --region us-west-1
 ```
+Save Subnet IDs, Security Groups, and VPC for next step
 
+### Create Cluster
+Create your EKS cluster. Use your AWS account id for <ACCOUNT_ID>. Ensure your subnets, security groups, and region is correct. 
 
 ```
 aws eks create-cluster \
   --name my-cluster \
   --role-arn arn:aws:iam::<ACCOUNT_ID>:role/EKSClusterRole \
   --resources-vpc-config subnetIds=<SUBNET1_ID>,<SUBNET2_ID>,securityGroupIds=<SG_ID> \
+  --region us-west-1
+```
+
+
+#### Node group
+Create Node group in cluster
+```
+aws eks create-nodegroup \
+  --cluster-name my-cluster \
+  --nodegroup-name my-node-group \
+  --node-role arn:aws:iam::<ACCOUNT_ID>:role/eksNodeRole \
+  --subnets subnet-abc123 subnet-def456 \
+  --scaling-config minSize=1,maxSize=2,desiredSize=1 \
+  --disk-size 20 \
+  --instance-types t3.medium \
   --region us-west-1
 ```
 
