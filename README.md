@@ -133,8 +133,9 @@ aws eks create-cluster \
 
 ### Enable kubectl access
 
+```
 aws eks update-kubeconfig --name my-cluster --region us-west-1
-
+```
 
 ### Deploy Honeypot (helm)
 Install the helm chart to deploy the honeypot service/deployment

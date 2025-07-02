@@ -2,30 +2,64 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "honeypot.fullname" . }}
+  labels:
+    app: honeypot
+    {{- include "honeypot.labels" . | nindent 4 }}
+  annotations:
+    deployment.kubernetes.io/revision: "1"
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.honeypot.replicas }}
+  revisionHistoryLimit: {{ .Values.honeypot.revisionHistoryLimit }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ .Values.honeypot.strategy.rollingUpdate.maxSurge | quote }}
+      maxUnavailable: {{ .Values.honeypot.strategy.rollingUpdate.maxUnavailable | quote }}
+    type: {{ .Values.honeypot.strategy.type | quote }}
   selector:
     matchLabels:
-      app: {{ include "honeypot.name" . }}
+      app: honeypot
+      {{- include "honeypot.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ include "honeypot.name" . }}
+        app: honeypot
+        {{- include "honeypot.selectorLabels" . | nindent 8 }}
     spec:
-#      serviceAccountName: {{ .Values.serviceAccount.name }} using default for now
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
-        - name: honeypot
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: cowrie
+          image: {{ .Values.honeypot.cowrie.image.repository }}:{{ .Values.honeypot.cowrie.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.honeypot.cowrie.imagePullPolicy }}
+          workingDir: /cowrie
+          volumeMounts:
+            - name: cowrie-moduli
+              mountPath: /cowrie
+            - name: moduli-config
+              mountPath: /moduli
           ports:
             - containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: KUBERNETES_CLUSTER_DOMAIN
+              value: {{ quote .Values.kubernetesClusterDomain }}
+          volumeMounts:
+            - name: cowrie-data
+              mountPath: /cowrie/var/lib/cowrie
+            - name: cowrie-logs
+              mountPath: /cowrie/var/log/cowrie
+          resources: {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: true
+            readOnlyRootFilesystem: false
+      volumes:
+        - name: cowrie-data
+          emptyDir: {}
+        - name: cowrie-logs
+          emptyDir: {}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30

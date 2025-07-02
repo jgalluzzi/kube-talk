@@ -1,9 +1,18 @@
-replicaCount: 1
+honeypot:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  cowrie:
+    image:
+      repository: cowrie/cowrie
+      tag: latest
+    imagePullPolicy: Always
 
-image:
-  repository: cowrie/cowrie
-  tag: latest
-  pullPolicy: IfNotPresent
+kubernetesClusterDomain: cluster.local
 
 service:
   type: LoadBalancer
@@ -15,7 +24,7 @@ service:
 serviceAccount:
   create: true
   name: honeypot-sa
-  annotations: {}  # Optional: Add eks.amazonaws.com/role-arn for IRSA
+  annotations: {}
 
 resources:
   limits:
